@@ -1,0 +1,91 @@
+name: app
+
+type: php:8.1
+
+dependencies:
+    php:
+        composer/composer: "^2"
+
+runtime:
+    extensions:
+        - iconv
+        - dom
+        - simplexml
+        - exif
+        - opcache
+        - imagick
+        - fileinfo
+        - sodium
+        - redis
+
+variables:
+    php:
+        memory_limit: 128M
+        opcache.preload: config/preload.php
+
+build:
+    flavor: none
+
+disk: 2048
+
+web:
+    locations:
+        "/":
+            root: "public"
+            expires: 1h
+            passthru: "/index.php"
+
+mounts:
+    "/var":
+        source: "local"
+        source_path: "var"
+    "/public/var":
+        source: "local"
+        source_path: "public_var"
+    "/public/pimcore":
+        source: "local"
+        source_path: "public_pimcore"
+    "/public/bundles":
+        source: "local"
+        source_path: "public_bundles"
+    "/config/local":
+        source: "local"
+        source_path: "config_local"
+
+relationships:
+    database: "db:mysql"
+    redis: "cache:redis"
+
+hooks:
+    build: |
+        set -x -e
+
+        curl -fsS https://raw.githubusercontent.com/platformsh/snippets/main/src/install-phpredis.sh | { bash /dev/fd/3 5.1.1 ; } 3<&0
+
+        curl -sS https://platform.sh/cli/installer | php
+
+        composer install --no-ansi --no-progress --prefer-dist --no-scripts
+    deploy: |
+        set -x -e
+
+        if [ ! -f public/var/.platform.installed ]; then
+            platform sql "ALTER DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            export PIMCORE_INSTALL_ADMIN_USERNAME='admin'
+            export PIMCORE_INSTALL_ADMIN_PASSWORD='admin'
+            ./vendor/bin/pimcore-install --no-interaction --ignore-existing-config --no-debug
+            touch public/var/.platform.installed
+        fi
+
+        ./bin/console cache:clear
+
+crons:
+    pimcore_cron:
+        spec: "*/5 * * * *"
+        commands:
+            start: "bin/console maintenance"
+
+source:
+    operations:
+        auto-update:
+            command: |
+                curl -fsS https://raw.githubusercontent.com/platformsh/source-operations/main/setup.sh | { bash /dev/fd/3 sop-autoupdate; } 3<&0

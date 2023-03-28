@@ -1,6 +1,6 @@
 imports:
-    - { resource: 'local/' }
-
+    - { resource: parameters_platformsh.php }
+    - { resource: "local/" }
 
 pimcore:
 
@@ -11,7 +11,6 @@ pimcore:
 # ./bin/console debug:config pimcore assets
 # or even more specific:
 # ./bin/console debug:config pimcore assets.image
-
 
 #### TRANSLATIONS
 #    translations:
@@ -33,7 +32,6 @@ pimcore:
 #            'Pimcore\Model\Document\Link': 'App\Model\Document\Link'
 #            'Pimcore\Model\Document\Listing': 'App\Model\Document\Listing'
 
-
 #### CUSTOM DOCUMENT EDITABLES
 #    documents:
 #        allow_trailing_slash: 'yes'
@@ -42,14 +40,12 @@ pimcore:
 #            map:
 #                markdown: \App\Model\Document\Tag\Markdown
 
-
 #### CUSTOM OBJECT DATA TYPES
 #    objects:
 #        class_definitions:
 #            data:
 #                map:
 #                  myDataType: \App\Model\DataObject\Data\MyDataType
-
 
 #### ASSET CUSTOM SETTINGS
 #    assets:
@@ -63,7 +59,6 @@ pimcore:
 #                generator: imagick
 #            thumbnails:
 #                webp_auto_support: false
-
 
 #### SYSTEM SETTINGS
 
@@ -114,20 +109,19 @@ pimcore:
 
 #### SYMFONY OVERRIDES
 framework:
+    #### DEFINE LOCATION OF MANIFEST WHEN WORKING WITH SYMFONY ENCORE
+    #    assets:
+    #        json_manifest_path: '%kernel.project_dir%/public/build/manifest.json'
 
-#### DEFINE LOCATION OF MANIFEST WHEN WORKING WITH SYMFONY ENCORE
-#    assets:
-#        json_manifest_path: '%kernel.project_dir%/public/build/manifest.json'
-
-#### USE CUSTOM CACHE POOL
-#    cache:
-#        pools:
-#            pimcore.cache.pool:
-#                public: true
-#                tags: true
-#                default_lifetime: 31536000  # 1 year
-#                adapter: pimcore.cache.adapter.redis_tag_aware
-#                provider: 'redis://localhost' # Redis DNS, see: https://symfony.com/doc/current/components/cache/adapters/redis_adapter.html#configure-the-connection
+    #### USE CUSTOM CACHE POOL
+    cache:
+        pools:
+            pimcore.cache.pool:
+                public: true
+                tags: true
+                default_lifetime: 31536000
+                adapter: pimcore.cache.adapter.redis_tag_aware
+                provider: "redis://%redis_host%:%redis_port%" # Redis DNS, see: https://symfony.com/doc/current/components/cache/adapters/redis_adapter.html#configure-the-connection
 
 #### USE SESSION HANDLER CONFIGURED IN php.ini
 #    session:
