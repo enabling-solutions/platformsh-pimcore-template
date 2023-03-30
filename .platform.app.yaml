@@ -50,6 +50,9 @@ mounts:
     "/public/bundles":
         source: "local"
         source_path: "public_bundles"
+    "/config/local":
+        source: "local"
+        source_path: "config_local"
 
 relationships:
     database: "db:mysql"
