@@ -22,6 +22,10 @@ variables:
     php:
         memory_limit: 128M
         opcache.preload: config/preload.php
+    env:
+        APP_ENV: "prod"
+        APP_DEBUG: true
+        PIMCORE_DEV_MODE: false
 
 build:
     flavor: none
@@ -68,7 +72,6 @@ hooks:
         set -e
 
         if [ ! -f public/var/.platform.installed ]; then
-            mv .env.prod .env
             ./installer.sh
             touch public/var/.platform.installed
         fi
