@@ -24,8 +24,6 @@ variables:
         opcache.preload: config/preload.php
     env:
         APP_ENV: "prod"
-        APP_DEBUG: true
-        PIMCORE_DEV_MODE: false
 
 build:
     flavor: none

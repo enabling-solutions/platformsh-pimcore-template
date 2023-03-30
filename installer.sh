@@ -14,11 +14,11 @@ PIMCORE_INSTALL_MYSQL_HOST_SOCKET=db
 PIMCORE_INSTALL_MYSQL_PORT=3306
 
 if [ -n "$PLATFORM_RELATIONSHIPS" ]; then
-    PIMCORE_INSTALL_MYSQL_USERNAME=$(get_property_value ".database[0].username")
-    PIMCORE_INSTALL_MYSQL_PASSWORD=$(get_property_value ".database[0].password")
-    PIMCORE_INSTALL_MYSQL_DATABASE=$(get_property_value ".database[0].path")
-    PIMCORE_INSTALL_MYSQL_HOST_SOCKET=$(get_property_value ".database[0].host")
-    PIMCORE_INSTALL_MYSQL_PORT=$(get_property_value ".database[0].port")
+    PIMCORE_INSTALL_MYSQL_USERNAME=$(get_platformsh_config_value ".database[0].username")
+    PIMCORE_INSTALL_MYSQL_PASSWORD=$(get_platformsh_config_value ".database[0].password")
+    PIMCORE_INSTALL_MYSQL_DATABASE=$(get_platformsh_config_value ".database[0].path")
+    PIMCORE_INSTALL_MYSQL_HOST_SOCKET=$(get_platformsh_config_value ".database[0].host")
+    PIMCORE_INSTALL_MYSQL_PORT=$(get_platformsh_config_value ".database[0].port")
 fi
 
 export PIMCORE_INSTALL_MYSQL_USERNAME
