@@ -1,0 +1,286 @@
+diff --git a/.gitignore b/.gitignore
+index 159ccab..59348d2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -48,3 +48,6 @@ nbproject
+ 
+ # temp
+ .temp
++
++/cache
++/supervisord.pid
+\ No newline at end of file
+diff --git a/.platform.app.yaml b/.platform.app.yaml
+new file mode 100644
+index 0000000..31162a1
+--- /dev/null
++++ b/.platform.app.yaml
+@@ -0,0 +1,93 @@
++name: app
++
++type: php:8.1
++
++dependencies:
++    php:
++        composer/composer: "^2"
++
++runtime:
++    extensions:
++        - iconv
++        - dom
++        - simplexml
++        - exif
++        - opcache
++        - imagick
++        - fileinfo
++        - sodium
++        - redis
++
++variables:
++    php:
++        memory_limit: 128M
++        opcache.preload: config/preload.php
++    env:
++        APP_ENV: "prod"
++
++build:
++    flavor: none
++
++disk: 2048
++
++web:
++    locations:
++        "/":
++            root: "public"
++            expires: 1h
++            passthru: "/index.php"
++
++mounts:
++    "/var":
++        source: "local"
++        source_path: "var"
++    "/public/var":
++        source: "local"
++        source_path: "public_var"
++    "/public/pimcore":
++        source: "local"
++        source_path: "public_pimcore"
++    "/public/bundles":
++        source: "local"
++        source_path: "public_bundles"
++    "/config/local":
++        source: "local"
++        source_path: "config_local"
++
++relationships:
++    database: "db:mysql"
++    redis: "cache:redis"
++
++hooks:
++    build: |
++        set -e
++
++        curl -fsS https://raw.githubusercontent.com/platformsh/snippets/main/src/install-phpredis.sh | { bash /dev/fd/3 5.1.1 ; } 3<&0
++        curl -sS https://platform.sh/cli/installer | php
++
++        composer install --no-ansi --no-progress --prefer-dist --no-scripts
++    deploy: |
++        set -e
++
++        if [ ! -f public/var/.platform.installed ]; then
++            ./installer.sh
++            touch public/var/.platform.installed
++        fi
++
++        ./bin/console cache:clear
++
++crons:
++    pimcore_maintenance:
++        spec: "*/5 * * * *"
++        commands:
++            start: "bin/console pimcore:maintenance --async"
++    messenger_consume:
++        spec: "*/5 * * * *"
++        commands:
++            start: "bin/console messenger:consume pimcore_core pimcore_maintenance pimcore_image_optimize --time-limit=300"
++
++source:
++    operations:
++        auto-update:
++            command: |
++                curl -fsS https://raw.githubusercontent.com/platformsh/source-operations/main/setup.sh | { bash /dev/fd/3 sop-autoupdate; } 3<&0
+diff --git a/.platform.template.yaml b/.platform.template.yaml
+new file mode 100644
+index 0000000..4c17121
+--- /dev/null
++++ b/.platform.template.yaml
+@@ -0,0 +1,29 @@
++version: 1
++
++info:
++    id: enabling-solutions/platformsh-pimcore-template
++    name: Pimcore
++    description: |
++        <p>This template builds Pimcore 10 on Platform.sh. It comes pre-installed with a MariaDB database and Redis for caching via a custom configuration file. It will self-install on the first deploy.</p>
++        <p>Pimcore is a Symfony-based Digital Experience Platform.</p>
++    tags:
++        - PHP
++        - Symfony
++        - PIM
++        - CMS
++
++    image: data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgY2xpcC1wYXRoPSJ1cmwoI2NsaXAwXzY2NzRfMTU1MTIpIj4KPHBhdGggZD0iTTE5LjAwMTUgNi45OTg5NEMxOC4xNzcyIDcuMDAyMzEgMTcuMzY2MyA3LjIwNzY4IDE2LjYzOTggNy41OTcwN0MxNS45MTMzIDcuOTg2NDYgMTUuMjkzMiA4LjU0OCAxNC44MzQgOS4yMzI1NEwxMS4xNjc5IDE0Ljc2NTNDMTAuNjg5NyAxNS40ODU1IDEwLjAzMzEgMTYuMDY5NSA5LjI2MTkyIDE2LjQ2MDJDOC40OTA3NyAxNi44NTA5IDcuNjMxNTEgMTcuMDM1IDYuNzY3OTkgMTYuOTk0NUM1LjkwNDQ3IDE2Ljk1NDEgNS4wNjYxOCAxNi42OTA1IDQuMzM0OTIgMTYuMjI5NEMzLjYwMzY3IDE1Ljc2ODQgMy4wMDQ0MyAxNS4xMjU2IDIuNTk1NjkgMTQuMzYzOUMyLjE4Njk0IDEzLjYwMjEgMS45ODI2NSAxMi43NDc1IDIuMDAyNzQgMTEuODgzMkMyLjAyMjg0IDExLjAxOSAyLjI2NjY0IDEwLjE3NDcgMi43MTAzNSA5LjQzMjgxQzMuMTU0MDcgOC42OTA5IDMuNzgyNTQgOC4wNzY3IDQuNTM0NDMgNy42NTAxM0M1LjI4NjMyIDcuMjIzNTYgNi4xMzU5NiA2Ljk5OTE5IDcuMDAwNDMgNi45OTg5NEM3LjgxNzU5IDYuOTk2MzQgOC42MjI3MSA3LjE5NTkxIDkuMzQ0MDYgNy41Nzk4NUMxMC4wNjU0IDcuOTYzNzkgMTAuNjgwNiA4LjUyMDE4IDExLjEzNDggOS4xOTk0N0wxMS44MDE1IDEwLjE5ODlMMTMuMDAwNCA4LjM5OTQ3TDEyLjgzNCA4LjEzMjhDMTIuMTY1NCA3LjEyMzg1IDExLjI0NjUgNi4zMDU1NCAxMC4xNjcxIDUuNzU3NzdDOS4wODc3NiA1LjIxIDcuODg0NzkgNC45NTE0OSA2LjY3NTY4IDUuMDA3NUM1LjQ2NjU3IDUuMDYzNSA0LjI5MjY0IDUuNDMyMSAzLjI2ODUzIDYuMDc3MjlDMi4yNDQ0MSA2LjcyMjQ5IDEuNDA1MTEgNy42MjIyNCAwLjgzMjU4NCA4LjY4ODY4QzAuMjYwMDUzIDkuNzU1MTIgLTAuMDI2MTQwOSAxMC45NTE4IDAuMDAxOTQ2MTIgMTIuMTYxOUMwLjAzMDAzMzIgMTMuMzcyIDAuMzcxNDQxIDE0LjU1NDEgMC45OTI4MzUgMTUuNTkyOEMxLjYxNDIzIDE2LjYzMTYgMi40OTQzNyAxNy40OTE0IDMuNTQ3MzEgMTguMDg4NEM0LjYwMDI2IDE4LjY4NTQgNS43OTAwMiAxOC45OTkxIDcuMDAwNDMgMTguOTk4OUM4LjE1NzAzIDE5LjAwNDYgOS4yOTY2NiAxOC43MjA4IDEwLjMxNTYgMTguMTczNUMxMS4zMzQ0IDE3LjYyNjEgMTIuMjAwMiAxNi44MzI2IDEyLjgzNCAxNS44NjUxTDE0LjIwMTUgMTMuNzk4OUwxNC44MzQgMTQuNzY1M0MxNS4zMTIyIDE1LjQ4NTUgMTUuOTY4OSAxNi4wNjk1IDE2Ljc0IDE2LjQ2MDJDMTcuNTExMiAxNi44NTA5IDE4LjM3MDQgMTcuMDM1IDE5LjIzMzkgMTYuOTk0NUMyMC4wOTc1IDE2Ljk1NDEgMjAuOTM1OCAxNi42OTA1IDIxLjY2NyAxNi4yMjk0QzIyLjM5ODMgMTUuNzY4NCAyMi45OTc1IDE1LjEyNTYgMjMuNDA2MiAxNC4zNjM5QzIzLjgxNSAxMy42MDIxIDI0LjAxOTMgMTIuNzQ3NSAyMy45OTkyIDExLjg4MzJDMjMuOTc5MSAxMS4wMTkgMjMuNzM1MyAxMC4xNzQ3IDIzLjI5MTYgOS40MzI4MUMyMi44NDc5IDguNjkwOSAyMi4yMTk0IDguMDc2NyAyMS40Njc1IDcuNjUwMTNDMjAuNzE1NiA3LjIyMzU2IDE5Ljg2NiA2Ljk5OTE5IDE5LjAwMTUgNi45OTg5NFpNMTkuMDAxNSAxNC45OTg5QzE4LjUwMzYgMTQuOTk5MSAxOC4wMTM2IDE0Ljg3NDEgMTcuNTc2NyAxNC42MzUzQzE3LjEzOTggMTQuMzk2NSAxNi43NyAxNC4wNTE3IDE2LjUwMTIgMTMuNjMyNUwxNS40MDA0IDExLjk5ODRMMTYuNTAxMiAxMC4zMzIzQzE2Ljc3NzEgOS45MjIzOSAxNy4xNDkzIDkuNTg2NDggMTcuNTg1MiA5LjM1NDAxQzE4LjAyMTEgOS4xMjE1NCAxOC41MDc1IDguOTk5NjEgMTkuMDAxNSA4Ljk5ODk0QzE5Ljc4NzQgOS4wMTM3NiAyMC41MzYgOS4zMzYzNCAyMS4wODY1IDkuODk3MzRDMjEuNjM3MSAxMC40NTgzIDIxLjk0NTUgMTEuMjEyOSAyMS45NDU1IDExLjk5ODlDMjEuOTQ1NSAxMi43ODQ5IDIxLjYzNzEgMTMuNTM5NSAyMS4wODY1IDE0LjEwMDVDMjAuNTM2IDE0LjY2MTUgMTkuNzg3NCAxNC45ODQxIDE5LjAwMTUgMTQuOTk4OVoiIGZpbGw9IiM2NDI4QjQiLz4KPC9nPgo8ZGVmcz4KPGNsaXBQYXRoIGlkPSJjbGlwMF82Njc0XzE1NTEyIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSJ3aGl0ZSIvPgo8L2NsaXBQYXRoPgo8L2RlZnM+Cjwvc3ZnPgo=
++    notes:
++        - heading: "Features"
++          content: |
++              PHP 8.1<br />
++              MariaDB 10.4<br />
++              Redis 5<br />
++              Automatic TLS certificates<br />
++              Composer-based build<br />
++
++initialize:
++    repository: https://github.com/enabling-solutions/platformsh-pimcore-template.git@main
++    config: null
++    files: []
++    profile: Pimcore
+diff --git a/.platform/routes.yaml b/.platform/routes.yaml
+new file mode 100644
+index 0000000..ec023c4
+--- /dev/null
++++ b/.platform/routes.yaml
+@@ -0,0 +1,9 @@
++"https://{default}/":
++    type: upstream
++    upstream: "app:http"
++    cache:
++        enabled: true
++
++"https://www.{default}/":
++    type: redirect
++    to: "https://{default}/"
+diff --git a/.platform/services.yaml b/.platform/services.yaml
+new file mode 100644
+index 0000000..4b1117f
+--- /dev/null
++++ b/.platform/services.yaml
+@@ -0,0 +1,10 @@
++db:
++    type: mariadb:10.4
++    disk: 2048
++    configuration:
++        properties:
++            default_charset: utf8mb4
++            default_collation: utf8mb4_unicode_ci
++
++cache:
++    type: redis:5.0
+diff --git a/composer.json b/composer.json
+index 0c03d5b..43d62c9 100644
+--- a/composer.json
++++ b/composer.json
+@@ -5,10 +5,14 @@
+   "config": {
+     "optimize-autoloader": true,
+     "sort-packages": true,
+-    "process-timeout": 0
++    "process-timeout": 0,
++    "platform": {
++      "php": "8.1"
++    }
+   },
+   "require": {
+-    "pimcore/pimcore": "^10.5"
++    "pimcore/pimcore": "^10.5",
++    "platformsh/config-reader": "^2.4"
+   },
+   "require-dev": {
+     "codeception/codeception": "^4.1.12",
+diff --git a/config/packages/prod/config.yaml b/config/packages/prod/config.yaml
+index d77183c..dc37fdc 100644
+--- a/config/packages/prod/config.yaml
++++ b/config/packages/prod/config.yaml
+@@ -1,2 +1,13 @@
+ imports:
++    - { resource: parameters_platformsh.php }
+     - { resource: ../../config.yaml }
++
++framework:
++    cache:
++        pools:
++            pimcore.cache.pool:
++                public: true
++                tags: true
++                default_lifetime: 31536000
++                adapter: pimcore.cache.adapter.redis_tag_aware
++                provider: "redis://%redis_host%:%redis_port%"
+diff --git a/config/packages/prod/parameters_platformsh.php b/config/packages/prod/parameters_platformsh.php
+new file mode 100644
+index 0000000..4ed9f86
+--- /dev/null
++++ b/config/packages/prod/parameters_platformsh.php
+@@ -0,0 +1,24 @@
++<?php
++
++$platformsh = new \Platformsh\ConfigReader\Config();
++
++if ($platformsh->hasRelationship('database')) {
++    $database_credentials = $platformsh->credentials('database');
++    $container->setParameter('database_driver', 'pdo_'.$database_credentials['scheme']);
++    $container->setParameter('database_host', $database_credentials['host']);
++    $container->setParameter('database_port', $database_credentials['port']);
++    $container->setParameter('database_name', $database_credentials['path']);
++    $container->setParameter('database_user', $database_credentials['username']);
++    $container->setParameter('database_password', $database_credentials['password']);
++    $container->setParameter('database_path', '');
++}
++
++if ($platformsh->hasRelationship('redis')) {
++    $redis_credentials = $platformsh->credentials('redis');
++    $container->setParameter('redis_host', $redis_credentials['host']);
++    $container->setParameter('redis_port', $redis_credentials['port']);
++}
++
++if ($platformsh->projectEntropy) {
++    $container->setParameter('secret', $platformsh->projectEntropy);
++}
+diff --git a/installer.sh b/installer.sh
+new file mode 100755
+index 0000000..3bd4db0
+--- /dev/null
++++ b/installer.sh
+@@ -0,0 +1,33 @@
++#!/bin/bash
++set -e
++
++function get_platformsh_config_value() {
++    local property="$1"
++    local value=$(echo "$PLATFORM_RELATIONSHIPS" | base64 --decode | jq -r "$property")
++    echo "$value"
++}
++
++PIMCORE_INSTALL_MYSQL_USERNAME=pimcore
++PIMCORE_INSTALL_MYSQL_PASSWORD=pimcore
++PIMCORE_INSTALL_MYSQL_DATABASE=pimcore
++PIMCORE_INSTALL_MYSQL_HOST_SOCKET=db
++PIMCORE_INSTALL_MYSQL_PORT=3306
++
++if [ -n "$PLATFORM_RELATIONSHIPS" ]; then
++    PIMCORE_INSTALL_MYSQL_USERNAME=$(get_platformsh_config_value ".database[0].username")
++    PIMCORE_INSTALL_MYSQL_PASSWORD=$(get_platformsh_config_value ".database[0].password")
++    PIMCORE_INSTALL_MYSQL_DATABASE=$(get_platformsh_config_value ".database[0].path")
++    PIMCORE_INSTALL_MYSQL_HOST_SOCKET=$(get_platformsh_config_value ".database[0].host")
++    PIMCORE_INSTALL_MYSQL_PORT=$(get_platformsh_config_value ".database[0].port")
++fi
++
++export PIMCORE_INSTALL_MYSQL_USERNAME
++export PIMCORE_INSTALL_MYSQL_PASSWORD
++export PIMCORE_INSTALL_MYSQL_DATABASE
++export PIMCORE_INSTALL_MYSQL_HOST_SOCKET
++export PIMCORE_INSTALL_MYSQL_PORT
++
++export PIMCORE_INSTALL_ADMIN_USERNAME='admin'
++export PIMCORE_INSTALL_ADMIN_PASSWORD='admin'
++
++./vendor/bin/pimcore-install --no-interaction --ignore-existing-config
+\ No newline at end of file
