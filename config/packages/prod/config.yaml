@@ -1,2 +1,13 @@
 imports:
+    - { resource: parameters_platformsh.php }
     - { resource: ../../config.yaml }
+
+framework:
+    cache:
+        pools:
+            pimcore.cache.pool:
+                public: true
+                tags: true
+                default_lifetime: 31536000
+                adapter: pimcore.cache.adapter.redis_tag_aware
+                provider: "redis://%redis_host%:%redis_port%"

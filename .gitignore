@@ -48,3 +48,6 @@ nbproject
 
 # temp
 .temp
+
+/cache
+/supervisord.pid

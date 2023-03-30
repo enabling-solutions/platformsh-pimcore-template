@@ -1,6 +1,10 @@
 db:
     type: mariadb:10.4
     disk: 2048
+    configuration:
+        properties:
+            default_charset: utf8mb4
+            default_collation: utf8mb4_unicode_ci
 
 cache:
     type: redis:5.0
