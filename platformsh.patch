@@ -175,6 +175,25 @@ index 0000000..4b1117f
 +
 +cache:
 +    type: redis:5.0
+diff --git a/.vscode/launch.json b/.vscode/launch.json
+new file mode 100644
+index 0000000..6085da6
+--- /dev/null
++++ b/.vscode/launch.json
+@@ -0,0 +1,13 @@
++{
++  "configurations": [
++    {
++      "name": "Listen for Xdebug",
++      "type": "php",
++      "request": "launch",
++      "port": 9003,
++      "pathMappings": {
++        "/var/www/html": "${workspaceFolder}"
++      }
++    }
++  ]
++}
 diff --git a/composer.json b/composer.json
 index 0c03d5b..43d62c9 100644
 --- a/composer.json
